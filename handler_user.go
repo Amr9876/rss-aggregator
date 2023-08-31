@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/amr9876/rss-aggregator/internal/database"
@@ -44,4 +45,23 @@ func (apiCfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request
 
 func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user *database.User) {
 	respondWithJson(w, 200, databaseUserToUser(user))
+}
+
+func (apiCfg *apiConfig) handlerPostsForUser(w http.ResponseWriter, r *http.Request, user *database.User) {
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10
+	if specifiedLimit, err := strconv.Atoi(limitStr); err == nil {
+		limit = specifiedLimit
+	}
+
+	posts, err := apiCfg.DB.GetPostsForUser(r.Context(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get posts for user")
+		return
+	}
+
+	respondWithJson(w, http.StatusOK, databasePostsToPosts(posts))
 }
